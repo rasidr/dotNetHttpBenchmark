@@ -9,6 +9,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using Refit;
 
 namespace dotNetHttpBenchmarkCore
 {
@@ -24,10 +25,14 @@ namespace dotNetHttpBenchmarkCore
         private readonly IFlurlClient _flurlClient;
         private readonly static HttpClient s_client = new HttpClient();
         private string _api;
+        private readonly IRefitSampleApiClient _refitClient;
+
         public HttpBenchmark()
         {
             _api = "http://localhost/SampleApi/";
             _flurlClient = new FlurlClient();
+
+            _refitClient = RestService.For<IRefitSampleApiClient>(_api);
         }
 
         [Benchmark]
@@ -35,6 +40,7 @@ namespace dotNetHttpBenchmarkCore
 
         [Benchmark]
         public Task Get_HttpClientAsync() => ExecuteHttpClient(_api + "SampleGet", HttpMethod.Get);
+        
         [Benchmark]
         public async Task Get_WebClientAsync()
         {
@@ -54,6 +60,13 @@ namespace dotNetHttpBenchmarkCore
             var getRequest = new RestRequest(Method.GET);
             var response = await restClient.ExecuteAsync(getRequest);
         }
+
+        [Benchmark]
+        public async Task Get_RefitAsync()
+        {
+            await _refitClient.SampleGet();
+        }
+
         [Benchmark]
         public async Task Get_FlurlAsync()
         {
@@ -61,6 +74,7 @@ namespace dotNetHttpBenchmarkCore
             resp.EnsureSuccessStatusCode();
             var responseString = await resp.Content.ReadAsStringAsync();
         }
+
         [Benchmark]
         public void Post_WebRequest() => ExecuteWebRequest(_api + "SamplePost", string.Empty);
 
@@ -82,12 +96,17 @@ namespace dotNetHttpBenchmarkCore
         [Benchmark]
         public async Task Post_RestSharpAsync()
         {
+            await _refitClient.SamplePost();
+        }
+
+        [Benchmark]
+        public async Task Post_RefitAsync()
+        {
             var restClient = new RestClient(_api + "SamplePost");
             var getRequest = new RestRequest(Method.POST);
             var response = await restClient.ExecuteAsync(getRequest);
         }
 
-  
         [Benchmark]
         public async Task Post_FlurlAsync()
         {
@@ -141,6 +160,16 @@ namespace dotNetHttpBenchmarkCore
             }
         }
     }
+
+    public interface IRefitSampleApiClient
+    {
+        [Get("/SampleGet")]
+        Task SampleGet();
+
+        [Post("/SamplePost")]
+        Task SamplePost();
+    }
+
     class Program
     {
         static void Main(string[] args)
